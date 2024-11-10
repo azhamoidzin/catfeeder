@@ -22,9 +22,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 fake_users_db = {
-    "johndoe": {
+    "johndoe@example.com": {
         'user_id': 0,
-        "username": "johndoe",
         "full_name": "John Doe",
         "email": "johndoe@example.com",
         "hashed_password": "$2a$10$KSEpyXKj/a0KuV/z8eutQOpE9J6juwowmJO83fUzUp.u3oFdFP8GK",
@@ -33,7 +32,7 @@ fake_users_db = {
         'registration_date': '1970-01-01',
 
     },
-    'vasia': {
+    'vasia@example.com': {
         'user_id': 1,
         "username": "vasia",
         "full_name": "Vasia Piatkin",
@@ -382,6 +381,6 @@ def activate_user(token: str, activation_data: ActivationData):
 
     fake_users_db[email]['disabled'] = 1
     fake_users_db[email]['registration_date'] = 'today'
-    fake_users_db[email]['password'] = get_password_hash(activation_data.password)
+    fake_users_db[email]['hashed_password'] = get_password_hash(activation_data.password)
     return {"msg": "Account activated successfully"}
 
