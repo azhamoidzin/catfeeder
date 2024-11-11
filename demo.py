@@ -34,7 +34,6 @@ fake_users_db = {
     },
     'vasia@example.com': {
         'user_id': 1,
-        "username": "vasia",
         "full_name": "Vasia Piatkin",
         "email": "vasia@example.com",
         "hashed_password": "$2a$10$KSEpyXKj/a0KuV/z8eutQOpE9J6juwowmJO83fUzUp.u3oFdFP8GK",
@@ -45,7 +44,7 @@ fake_users_db = {
 }
 
 fake_feeders_db = {
-    'johndoe': {
+    'johndoe@example.com': {
         228: {
             'feeder_id': 228,
             'name': 'Kitchen',
@@ -72,11 +71,10 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: str | None = None
+    email: str | None = None
 
 
 class User(BaseModel):
-    username: str
     email: str | None = None
     full_name: str | None = None
     disabled: bool | None = None
@@ -138,14 +136,14 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
+def get_user(db, email: str):
+    if email in db:
+        user_dict = db[email]
         return UserInDB(**user_dict)
 
 
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
+def authenticate_user(fake_db, email: str, password: str):
+    user = get_user(fake_db, email)
     if not user or user.disabled:
         return False
     if not verify_password(password, user.hashed_password):
@@ -172,13 +170,13 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        email: str = payload.get("sub")
+        if email is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(email=email)
     except InvalidTokenError:
         raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
+    user = get_user(fake_users_db, email=token_data.email)
     if user is None:
         raise credentials_exception
     return user
@@ -200,12 +198,12 @@ async def login_for_access_token(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.email}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
 
@@ -221,7 +219,7 @@ async def read_users_me(
 async def read_own_feeders(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
-    return list(fake_feeders_db[current_user.username].values())
+    return list(fake_feeders_db[current_user.email].values())
 
 
 @app.get("/users/me/feeders/{feeder_id}", response_model=FeederDB)
@@ -229,12 +227,12 @@ async def read_own_feeder(
     feeder_id: int,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
-    if feeder_id not in fake_feeders_db[current_user.username]:
+    if feeder_id not in fake_feeders_db[current_user.emmail]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Feeder not found",
         )
-    return fake_feeders_db[current_user.username][feeder_id]
+    return fake_feeders_db[current_user.email][feeder_id]
 
 
 @app.get("/users/me/feeders/{feeder_id}/schedule")
@@ -242,12 +240,12 @@ async def read_own_feeder(
     feeder_id: int,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
-    if feeder_id not in fake_feeders_db[current_user.username]:
+    if feeder_id not in fake_feeders_db[current_user.email]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Feeder not found",
         )
-    feeder = fake_feeders_db[current_user.username][feeder_id]
+    feeder = fake_feeders_db[current_user.email][feeder_id]
     schedule_str = ', '.join(feeder['schedule'])
     buffer = io.BytesIO(schedule_str.encode('utf-8'))
 
@@ -262,9 +260,11 @@ async def create_feeder(
     feeder: Feeder,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
-    _id = max(fake_feeders_db[current_user.username].keys()) + 1
+    _id = max(fake_feeders_db[current_user.email].keys()) + 1
     new_feeder = {'feeder_id': _id, **feeder.dict()}
-    fake_feeders_db[current_user.username][new_feeder['feeder_id']] = new_feeder
+    if current_user.email not in fake_feeders_db:
+        fake_feeders_db[current_user.email] = {}
+    fake_feeders_db[current_user.email][new_feeder['feeder_id']] = new_feeder
     print(new_feeder)
     return new_feeder
 
@@ -275,14 +275,14 @@ async def read_own_feeders(
     feeder_update: FeederUpdate,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
-    if feeder_id not in fake_feeders_db[current_user.username]:
+    if feeder_id not in fake_feeders_db[current_user.email]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Feeder not found",
         )
     feeder_update = {k: v for k, v in feeder_update.dict().items() if v is not None}
-    new_feeder = {**fake_feeders_db[current_user.username][feeder_id], **feeder_update}
-    fake_feeders_db[current_user.username][feeder_id] = new_feeder
+    new_feeder = {**fake_feeders_db[current_user.email][feeder_id], **feeder_update}
+    fake_feeders_db[current_user.useemailrname][feeder_id] = new_feeder
     return new_feeder
 
 
