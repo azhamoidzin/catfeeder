@@ -13,7 +13,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from jwt.exceptions import InvalidTokenError, PyJWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel, PositiveInt, AfterValidator, EmailStr
-from config import config
+import os
+
+
+EMAIL_ADDRESS = os.environ['EMAIL_ADDRESS']
+EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
+
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -402,13 +407,13 @@ async def create_family_member(
     activation_link = f"{request.headers.get('referer')}activate/{token}"
     msg = MIMEText(f"Click the link to activate your account: {activation_link}")
     msg["Subject"] = "Activate your account"
-    msg["From"] = config['email']
+    msg["From"] = EMAIL_ADDRESS
     msg["To"] = target_email
 
     with smtplib.SMTP("smtp.gmail.com", 587) as server:
         server.starttls()
-        server.login(config['email'], config['passw'])
-        server.sendmail(config['email'], [target_email], msg.as_string())
+        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_ADDRESS, [target_email], msg.as_string())
         return True
 
 
