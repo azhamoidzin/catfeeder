@@ -1,10 +1,12 @@
+import asyncio
+import logging
 import smtplib
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from typing import Annotated
 import io
 import jwt
-from fastapi import Depends, FastAPI, HTTPException, status, Request
+from fastapi import Depends, FastAPI, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,7 +21,7 @@ SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-
+logging.basicConfig(level=logging.DEBUG)
 
 fake_users_db = {
     "johndoe@example.com": {
@@ -63,6 +65,38 @@ fake_feeders_db = {
         }
     }
 }
+
+logs = []
+
+
+def get_current_time():
+    return datetime.now()
+
+
+async def process_feeder(feeder_id):
+    def get_feeder_dict():
+        for user, user_feeders in fake_feeders_db.items():
+            for feeder_id_db, feeder_dict in user_feeders.items():
+                if feeder_id_db == feeder_id:
+                    return feeder_dict
+    feeder_dict = get_feeder_dict()
+    logging.debug(f"Adding feeder {feeder_dict['feeder_id']} processor")
+    logs.append({
+        'feeder_id': feeder_dict['feeder_id'],
+        'msg': f"Feeder {feeder_dict['name']}[{feeder_dict['feeder_id']}] loaded into system"
+    })
+    while True:
+        feeder_dict = get_feeder_dict()
+        now = get_current_time()
+        current_time_str = now.strftime("%H:%M")
+
+        if current_time_str in feeder_dict['schedule']:
+            logs.append({
+                'feeder_id': feeder_dict['feeder_id'],
+                'msg': f"Feeder {feeder_dict['name']}[{feeder_dict['feeder_id']}] fed for {feeder_dict['meal']}"
+            })
+            logging.debug(f"Feeder {feeder_dict['feeder_id']} processed")
+        await asyncio.sleep(20)
 
 
 class Token(BaseModel):
@@ -190,6 +224,14 @@ async def get_current_active_user(
     return current_user
 
 
+@app.on_event("startup")
+def app_startup():
+    logging.debug('Creating feeders on startup')
+    for user, user_feeders in fake_feeders_db.items():
+        for feeder_id, feeder_dict in user_feeders.items():
+            asyncio.create_task(process_feeder(feeder_id))
+
+
 @app.post("/login")
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -227,7 +269,7 @@ async def read_own_feeder(
     feeder_id: int,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
-    if feeder_id not in fake_feeders_db[current_user.emmail]:
+    if feeder_id not in fake_feeders_db[current_user.email]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Feeder not found",
@@ -259,6 +301,7 @@ async def read_own_feeder(
 async def create_feeder(
     feeder: Feeder,
     current_user: Annotated[User, Depends(get_current_active_user)],
+    background_tasks: BackgroundTasks
 ):
     _id = max(fake_feeders_db[current_user.email].keys()) + 1
     new_feeder = {'feeder_id': _id, **feeder.dict()}
@@ -266,11 +309,16 @@ async def create_feeder(
         fake_feeders_db[current_user.email] = {}
     fake_feeders_db[current_user.email][new_feeder['feeder_id']] = new_feeder
     print(new_feeder)
+    logs.append({
+        'feeder_id': new_feeder['feeder_id'],
+        'msg': f"Feeder {new_feeder['name']}[{new_feeder['feeder_id']}] added by {current_user.full_name}"
+    })
+    background_tasks.add_task(process_feeder, new_feeder['feeder_id'])
     return new_feeder
 
 
 @app.put("/users/me/feeders/{feeder_id}", response_model=FeederDB)
-async def read_own_feeders(
+async def edit_feeder(
     feeder_id: int,
     feeder_update: FeederUpdate,
     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -282,7 +330,11 @@ async def read_own_feeders(
         )
     feeder_update = {k: v for k, v in feeder_update.dict().items() if v is not None}
     new_feeder = {**fake_feeders_db[current_user.email][feeder_id], **feeder_update}
-    fake_feeders_db[current_user.useemailrname][feeder_id] = new_feeder
+    fake_feeders_db[current_user.email][feeder_id] = new_feeder
+    logs.append({
+        'feeder_id': new_feeder['feeder_id'],
+        'msg': f"Feeder [{new_feeder['feeder_id']}] edited by {current_user.full_name}"
+    })
     return new_feeder
 
 
@@ -384,3 +436,20 @@ def activate_user(token: str, activation_data: ActivationData):
     fake_users_db[email]['hashed_password'] = get_password_hash(activation_data.password)
     return {"msg": "Account activated successfully"}
 
+
+class Log(BaseModel):
+    feeder_id: int
+    msg: str
+
+
+@app.get("/feeder/{feeder_id}/logs", response_model=list[Log])
+def get_feeder_logs(
+    feeder_id: int,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    if feeder_id not in fake_feeders_db[current_user.email]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feeder not found",
+        )
+    return [log for log in logs if log.get('feeder_id') == feeder_id]
