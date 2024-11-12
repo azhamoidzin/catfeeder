@@ -54,11 +54,15 @@ Before getting started, ensure you have the following installed:
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/yourusername/yourproject.git
-   cd yourproject
+   git clone https://github.com/azhamoidzin/catfeeder.git
+   cd catfeeder
    ```
 
-2. **Build and run the containers:**
+2. **Setup configuration**
+
+   Rename `secrets.env.template` file to `secrets.env` and fill required values
+
+3. **Build and run the containers:**
 
    Execute the following command in the project directory:
 
@@ -68,7 +72,7 @@ Before getting started, ensure you have the following installed:
 
    This command builds the images and starts the containers as specified in the `docker-compose.yml` file.
 
-3. **Access the application:**
+4. **Access the application:**
 
    Once the containers are running, access the application via:
 
@@ -77,5 +81,3 @@ Before getting started, ensure you have the following installed:
    ```
 
    Replace `your_port` with the appropriate port number specified in your `docker-compose.yml` (`8000` by default).
-assistance, consult the [Docker documentation](https://docs.docker.com/).
-4. 
