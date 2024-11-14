@@ -1,30 +1,17 @@
 import asyncio
 import logging
-import smtplib
 from datetime import datetime, timedelta, timezone
-from email.mime.text import MIMEText
 from typing import Annotated
 import io
-import jwt
 from fastapi import Depends, FastAPI, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from jwt.exceptions import InvalidTokenError, PyJWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel, PositiveInt, AfterValidator, EmailStr
-import os
 from database.db import fake_families_db, fake_users_db, fake_feeders_db, logs
-from utils.jwt_utils import create_access_token, EncodeData, decode_payload
 from database.users import get_current_active_user, authenticate_user
-from utils.password_utils import get_password_hash
-
-EMAIL_ADDRESS = os.environ['EMAIL_ADDRESS']
-EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
-
-
-# to get a string like this run:
-# openssl rand -hex 32
+from routers.login_registration.router import router as login_registration_router
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -111,6 +98,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 app = FastAPI()
+app.include_router(login_registration_router)
 origins = ["*"]
 
 app.add_middleware(
@@ -129,21 +117,6 @@ def app_startup():
             asyncio.create_task(process_feeder(feeder_id))
 
 
-@app.post("/login")
-async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> Token:
-    user = authenticate_user(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token = create_access_token(
-        data=EncodeData(email=user.email)
-    )
-    return Token(access_token=access_token, token_type="bearer")
 
 
 @app.get("/users/me/", response_model=User)
@@ -234,14 +207,6 @@ async def edit_feeder(
     return new_feeder
 
 
-fake_families_db = {
-    0: {
-        'id': 0,
-        'name': 'SUPER FAMILY',
-        'admin': 0,
-    }
-}
-
 class FamilyMember(BaseModel):
     id: int
     name: str
@@ -270,67 +235,9 @@ async def get_family(
     return family
 
 
-class NewMember(BaseModel):
-    name: str
-    email: EmailStr
 
 
-@app.post("/family")
-async def create_family_member(
-    member: NewMember,
-    current_user: Annotated[User, Depends(get_current_active_user)],
-    request: Request,
-):
-    if len(list(filter(lambda x: x['email'] == member.email, fake_users_db.values()))):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User with this email already exist",
-        )
-    last_id = max([u['user_id'] for u in fake_users_db.values()]) + 1
-    fake_users_db[member.email] = {
-        'user_id': last_id,
-        'full_name': member.name,
-        'email': member.email,
-        'family_id': current_user.family_id, 'disabled': 1
-    }
-    token = create_access_token(EncodeData(email=member.email))
-    target_email = member.email
-    activation_link = f"{request.headers.get('referer')}activate/{token}"
-    msg = MIMEText(f"Click the link to activate your account: {activation_link}")
-    msg["Subject"] = "Activate your account"
-    msg["From"] = EMAIL_ADDRESS
-    msg["To"] = target_email
 
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls()
-        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        server.sendmail(EMAIL_ADDRESS, [target_email], msg.as_string())
-        return True
-
-
-class ActivationData(BaseModel):
-    password: str
-
-
-@app.post("/activate/{token}")
-def activate_user(token: str, activation_data: ActivationData):
-    print(fake_users_db)
-    try:
-        payload = decode_payload(token)
-        email: str = dict(payload)['email']
-    except (PyJWTError, KeyError):
-        raise HTTPException(status_code=400, detail="Invalid token")
-
-    if email not in fake_users_db:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if not fake_users_db[email]['disabled']:
-        raise HTTPException(status_code=400, detail="User already activated")
-
-    fake_users_db[email]['disabled'] = 1
-    fake_users_db[email]['registration_date'] = 'today'
-    fake_users_db[email]['hashed_password'] = get_password_hash(activation_data.password)
-    return {"msg": "Account activated successfully"}
 
 
 class Log(BaseModel):

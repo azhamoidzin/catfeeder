@@ -15,14 +15,20 @@ credentials_exception = HTTPException(
 
 
 class User(BaseModel):
+    user_id: int
     email: EmailStr | None = None
     full_name: str | None = None
     disabled: bool | None = None
     family_id: int | None = None
+    registration_date: str | None = None
 
 
 class UserInDB(User):
-    hashed_password: str
+    hashed_password: str | None = None
+
+
+class UserUpdate(UserInDB):
+    user_id: None = None
 
 
 class Token(BaseModel):
@@ -30,13 +36,13 @@ class Token(BaseModel):
     token_type: str
 
 
-def get_user(email: str):
+def get_user(email: EmailStr) -> UserInDB | None:
     if email in fake_users_db:
         user_dict = fake_users_db[email]
         return UserInDB(**user_dict)
 
 
-def authenticate_user(email: str, password: str):
+def authenticate_user(email: EmailStr, password: str):
     user = get_user(email)
     if not user or user.disabled:
         return False
@@ -65,3 +71,20 @@ async def get_current_active_user(
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+
+def add_user(user: User) -> bool:
+    fake_users_db[user.email] = user.dict()
+    return True
+
+
+def update_user(user_email: EmailStr, update: UserUpdate):
+    if user := get_user(user_email):
+        user_updated = user.dict() | {k: v for k, v in update.dict().items() if v is not None}
+        fake_users_db[str(user_email)] = user_updated
+        return user_updated
+    return False
+
+
+def get_last_id():
+    return max([u['user_id'] for u in fake_users_db.values()])

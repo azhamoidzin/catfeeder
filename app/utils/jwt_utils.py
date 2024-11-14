@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from pydantic import BaseModel, EmailStr
-from jwt import encode, decode
+from jwt import encode, decode, PyJWTError
 from jwt.exceptions import InvalidTokenError
 from global_config import ACCESS_TOKEN_EXPIRE_MINUTES
 
