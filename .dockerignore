@@ -18,7 +18,7 @@ Dockerfile
 **/*.py[cod]
 
 # Virtual environment
-.env
+*.env
 .venv/
 venv/
 
