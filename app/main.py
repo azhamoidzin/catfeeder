@@ -14,7 +14,10 @@ from jwt.exceptions import InvalidTokenError, PyJWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel, PositiveInt, AfterValidator, EmailStr
 import os
-
+from database.db import fake_families_db, fake_users_db, fake_feeders_db, logs
+from utils.jwt_utils import create_access_token, EncodeData, decode_payload
+from database.users import get_current_active_user, authenticate_user
+from utils.password_utils import get_password_hash
 
 EMAIL_ADDRESS = os.environ['EMAIL_ADDRESS']
 EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
@@ -22,57 +25,9 @@ EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
 
 # to get a string like this run:
 # openssl rand -hex 32
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
 
 logging.basicConfig(level=logging.DEBUG)
-
-fake_users_db = {
-    "johndoe@example.com": {
-        'user_id': 0,
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "hashed_password": "$2a$10$KSEpyXKj/a0KuV/z8eutQOpE9J6juwowmJO83fUzUp.u3oFdFP8GK",
-        "disabled": False,
-        "family_id": 0,
-        'registration_date': '1970-01-01',
-
-    },
-    'vasia@example.com': {
-        'user_id': 1,
-        "full_name": "Vasia Piatkin",
-        "email": "vasia@example.com",
-        "hashed_password": "$2a$10$KSEpyXKj/a0KuV/z8eutQOpE9J6juwowmJO83fUzUp.u3oFdFP8GK",
-        "disabled": False,
-        "family_id": 0,
-        'registration_date': '2024-01-01',
-    }
-}
-
-fake_feeders_db = {
-    'johndoe@example.com': {
-        228: {
-            'feeder_id': 228,
-            'name': 'Kitchen',
-            'tags': ['tag1'],
-            'status': 0.5,
-            'schedule': ['09:00', '12:00', '15:00', '18:00', '21:00'],
-            'meal': 25
-        },
-        337: {
-            'feeder_id': 337,
-            'name': 'MainCoon OGROMNYI',
-            'tags': ['tag3', 'tag5'],
-            'status': 0.0,
-            'schedule': ['09:30', '12:30', '15:30', '18:30', '18:41', '21:30'],
-            'meal': 1000
-        }
-    }
-}
-
-logs = []
-
 
 def get_current_time():
     return datetime.now()
@@ -166,69 +121,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
-def get_user(db, email: str):
-    if email in db:
-        user_dict = db[email]
-        return UserInDB(**user_dict)
-
-
-def authenticate_user(fake_db, email: str, password: str):
-    user = get_user(fake_db, email)
-    if not user or user.disabled:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
-
-
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-        token_data = TokenData(email=email)
-    except InvalidTokenError:
-        raise credentials_exception
-    user = get_user(fake_users_db, email=token_data.email)
-    if user is None:
-        raise credentials_exception
-    return user
-
-
-async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)],
-):
-    if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
-
-
 @app.on_event("startup")
 def app_startup():
     logging.debug('Creating feeders on startup')
@@ -241,16 +133,15 @@ def app_startup():
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    user = authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
+        data=EncodeData(email=user.email)
     )
     return Token(access_token=access_token, token_type="bearer")
 
@@ -402,7 +293,7 @@ async def create_family_member(
         'email': member.email,
         'family_id': current_user.family_id, 'disabled': 1
     }
-    token = create_access_token({'email': member.email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    token = create_access_token(EncodeData(email=member.email))
     target_email = member.email
     activation_link = f"{request.headers.get('referer')}activate/{token}"
     msg = MIMEText(f"Click the link to activate your account: {activation_link}")
@@ -425,7 +316,7 @@ class ActivationData(BaseModel):
 def activate_user(token: str, activation_data: ActivationData):
     print(fake_users_db)
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = decode_payload(token)
         email: str = dict(payload)['email']
     except (PyJWTError, KeyError):
         raise HTTPException(status_code=400, detail="Invalid token")

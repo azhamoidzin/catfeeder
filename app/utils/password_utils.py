@@ -1,5 +1,5 @@
 from passlib.context import CryptContext
-from app.global_config import CRYPT_SCHEME
+from global_config import CRYPT_SCHEME
 
 pwd_context = CryptContext(schemes=[CRYPT_SCHEME], deprecated="auto")
 

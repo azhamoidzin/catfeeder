@@ -1,10 +1,10 @@
 from typing import Annotated
 from pydantic import BaseModel, EmailStr
 from fastapi import Depends, HTTPException, status
-from app.utils.jwt_utils import decode_payload, InvalidTokenError
-from app.utils.password_utils import verify_password
-from app.database.db import fake_users_db
-from app.routers.routers_config import oauth2_scheme
+from utils.jwt_utils import decode_payload, InvalidTokenError
+from utils.password_utils import verify_password
+from database.db import fake_users_db
+from routers.routers_config import oauth2_scheme
 
 
 credentials_exception = HTTPException(
