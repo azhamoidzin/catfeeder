@@ -1,32 +1,18 @@
-import os
 from typing import Annotated
-import smtplib
-from email.mime.text import MIMEText
-from pydantic import BaseModel, EmailStr
 from fastapi import Depends, HTTPException, status, APIRouter, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from database.users import (
     get_current_active_user, get_user, authenticate_user, Token, update_user, UserUpdate, UserInDB,
     get_last_id, add_user
 )
+from routers.login_registration.schemas import ActivationData, NewMember
 from routers.routers_config import RoutesEnum
 from utils.password_utils import get_password_hash
 from utils.jwt_utils import create_access_token, EncodeData, decode_payload, PyJWTError
+from utils.email_utils import send_activation_email
 
 
 router = APIRouter()
-
-EMAIL_ADDRESS = os.environ['EMAIL_ADDRESS']
-EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
-
-
-class ActivationData(BaseModel):
-    password: str
-
-
-class NewMember(BaseModel):
-    name: str
-    email: EmailStr
 
 
 @router.post(f'/{RoutesEnum.LOGIN}')
@@ -69,18 +55,9 @@ async def create_family_member(
     )
     add_user(new_member)
     token = create_access_token(EncodeData(email=member.email))
-    target_email = member.email
     activation_link = f"{request.headers.get('referer')}{RoutesEnum.ACTIVATE}/{token}"
-    msg = MIMEText(f"Click the link to activate your account: {activation_link}")
-    msg["Subject"] = "Activate your account"
-    msg["From"] = EMAIL_ADDRESS
-    msg["To"] = target_email
-
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls()
-        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        server.sendmail(EMAIL_ADDRESS, [target_email], msg.as_string())
-        return True
+    target_email = member.email
+    return send_activation_email(target_email, activation_link)
 
 
 @router.post(f"/{RoutesEnum.ACTIVATE}/{{token}}")

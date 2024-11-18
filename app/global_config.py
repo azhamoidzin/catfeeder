@@ -1,2 +1,4 @@
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 CRYPT_SCHEME = 'bcrypt'
+SMTP_HOST = 'smtp.gmail.com'
+SMTP_PORT = 587
