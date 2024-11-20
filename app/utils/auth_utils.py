@@ -1,15 +1,15 @@
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any
-from pydantic import BaseModel, EmailStr
-from jwt import encode, decode, PyJWTError
-from jwt.exceptions import InvalidTokenError
+
+from fastapi import Depends, HTTPException, status
+from jwt import encode, decode
+from jwt.exceptions import InvalidTokenError, PyJWTError
+
 from global_config import ACCESS_TOKEN_EXPIRE_MINUTES
+from schemas.auth import EncodeData
 
 
-class EncodeData(BaseModel):
-    email: EmailStr
-
+InvalidTokenError = InvalidTokenError
 
 SECRET_KEY = os.environ['SECRET_KEY']
 ALGORITHM = os.environ['ALGORITHM']

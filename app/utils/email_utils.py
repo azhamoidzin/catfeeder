@@ -16,7 +16,7 @@ def send_email(target_email: EmailStr | list[EmailStr], subject: str, content: s
     msg = MIMEText(content)
     msg['Subject'] = subject
     msg['From'] = EMAIL_ADDRESS
-    msg['To'] = target_email
+    msg['To'] = ', '.join(target_email)
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
         server.starttls()
