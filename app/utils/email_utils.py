@@ -25,9 +25,10 @@ def send_email(target_email: EmailStr | list[EmailStr], subject: str, content: s
         return True
 
 
-def send_activation_email(target_email: EmailStr, activation_link: str):
+def send_activation_email(target_email: EmailStr, name: str, activation_link: str):
     return send_email(
         target_email,
         'Activate your account',
+        f'Welcome to CatFeeder, {name}!\n'
         f'Click the link to activate your account: {activation_link}'
     )

@@ -37,7 +37,7 @@ async def login_for_access_token(
 
 
 @router.post(f"/{RoutesEnum.REGISTER}")
-async def create_family_member(
+async def register(
     member: NewMember,
     request: Request,
     db: Session = Depends(get_db),
@@ -61,7 +61,7 @@ async def create_family_member(
     token = create_access_token(EncodeData(email=member.email))
     activation_link = f"{request.headers.get('referer')}{RoutesEnum.ACTIVATE}/{token}"
     target_email = member.email
-    return send_activation_email(target_email, activation_link)
+    return send_activation_email(target_email, member.name, activation_link)
 
 
 @router.post(f"/{RoutesEnum.ACTIVATE}/{{token}}")
