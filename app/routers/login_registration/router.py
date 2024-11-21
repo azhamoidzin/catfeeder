@@ -1,11 +1,9 @@
 import datetime
 from typing import Annotated
+
 from fastapi import Depends, HTTPException, status, APIRouter, Request
 from fastapi.security import OAuth2PasswordRequestForm
-# from database.users import (
-#     get_current_active_user, get_user, authenticate_user, Token, update_user, UserUpdate, UserInDB,
-#     get_last_id, add_user
-# )
+
 from routers.login_registration.schemas import ActivationData, NewMember
 from routers.routers_config import RoutesEnum
 from utils.password_utils import get_password_hash
@@ -13,28 +11,29 @@ from utils.auth_utils import create_access_token, EncodeData, decode_payload, Py
 from utils.email_utils import send_activation_email
 from schemas.users import User, UserUpdate
 from schemas.family import Family
-from database import user_provider
-from database import family_provider
+from schemas.auth import Token
+from database import user_provider, family_provider
 from database.db import get_db, Session
 
 router = APIRouter()
-#
-#
-# @router.post(f'/{RoutesEnum.LOGIN}')
-# async def login_for_access_token(
-#     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-# ) -> Token:
-#     user = authenticate_user(form_data.username, form_data.password)
-#     if not user:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="Incorrect email or password",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-#     access_token = create_access_token(
-#         data=EncodeData(email=user.email)
-#     )
-#     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.post(f'/{RoutesEnum.LOGIN}')
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db),
+) -> Token:
+    user = user_provider.authenticate_user(form_data.username, form_data.password, db)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(
+        data=EncodeData(email=user.email)
+    )
+    return Token(access_token=access_token, token_type="bearer")
 
 
 @router.post(f"/{RoutesEnum.REGISTER}")

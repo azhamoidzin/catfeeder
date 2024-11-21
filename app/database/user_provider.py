@@ -3,7 +3,7 @@ from typing import Annotated
 from pydantic import EmailStr
 from fastapi import Depends, HTTPException, status
 
-from database.db import get_db, Session, DUser, update
+from database.db import Session, DUser, update, get_db
 from schemas.users import User, UserInDB, UserUpdate
 from utils.auth_utils import decode_payload, InvalidTokenError
 from utils.password_utils import verify_password
@@ -17,7 +17,7 @@ credentials_exception = HTTPException(
 )
 
 
-def get_user_by_email(email: EmailStr, db: Session = Depends(get_db)) -> UserInDB | None:
+def get_user_by_email(email: EmailStr, db: Session) -> UserInDB | None:
     user = db.query(DUser).where(DUser.email == email).first()
     if user:
         return UserInDB.model_validate(user)
@@ -31,7 +31,7 @@ def create_user(user: User, db: Session) -> UserInDB:
     return UserInDB.model_validate(user_insert)
 
 
-def update_user(user_update: UserUpdate, db: Session = Depends(get_db)):
+def update_user(user_update: UserUpdate, db: Session):
     user_update_dict = user_update.dict()
     user_id: int = user_update_dict.pop('id')
     query = (
@@ -45,8 +45,8 @@ def update_user(user_update: UserUpdate, db: Session = Depends(get_db)):
     return UserInDB.model_validate(user)
 
 
-def authenticate_user(email: EmailStr, password: str):
-    user = get_user_by_email(email)
+def authenticate_user(email: EmailStr, password: str, db: Session):
+    user = get_user_by_email(email, db)
     if not user or user.disabled:
         return False
     if not verify_password(password, user.hashed_password):
@@ -54,7 +54,7 @@ def authenticate_user(email: EmailStr, password: str):
     return user
 
 
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)):
     try:
         payload = decode_payload(token)
         if payload is None:
@@ -62,14 +62,14 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         token_data = payload
     except InvalidTokenError:
         raise credentials_exception
-    user = get_user_by_email(email=token_data.email)
+    user = get_user_by_email(token_data.email, db)
     if user is None:
         raise credentials_exception
     return user
 
 
 async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
     if current_user.disabled:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
