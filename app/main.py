@@ -3,21 +3,20 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 import io
-from fastapi import Depends, FastAPI, HTTPException, status, Request, BackgroundTasks
+from fastapi import Depends, FastAPI, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
-from pydantic import BaseModel, PositiveInt, AfterValidator, EmailStr
-from database.db import fake_families_db, fake_users_db, fake_feeders_db, logs
 from database import user_provider
-from routers.login_registration.router import router as login_registration_router
+from routers.login_registration_router import router as login_registration_router
+from routers.users_router import router as users_router
 
 
 logging.basicConfig(level=logging.DEBUG)
 
 app = FastAPI()
-app.include_router(login_registration_router)
+for router in [login_registration_router, users_router]:
+    app.include_router(router)
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
