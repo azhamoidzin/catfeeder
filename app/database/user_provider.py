@@ -23,6 +23,12 @@ def get_user_by_id(user_id: int, db: Session) -> UserInDB | None:
         return UserInDB.model_validate(user)
 
 
+def get_users_by_family_id(family_id: int, db: Session) -> list[UserInDB] | None:
+    users = db.query(DUser).where(DUser.family_id == family_id).all()
+    if users:
+        return [UserInDB.model_validate(user) for user in users]
+
+
 def create_user(user: User, db: Session) -> UserInDB:
     user_insert = DUser(**user.dict())
     db.add(user_insert)

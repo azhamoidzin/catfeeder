@@ -8,3 +8,7 @@ class ActivationData(BaseModel):
 class NewMember(BaseModel):
     name: str
     email: EmailStr
+
+
+class NewAdminMember(NewMember):
+    family_name: str

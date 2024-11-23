@@ -4,14 +4,15 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status, APIRouter, Request
 from fastapi.security import OAuth2PasswordRequestForm
 
-from schemas.login_registration import ActivationData, NewMember
 from routers.routers_config import RoutesEnum
 from utils.password_utils import get_password_hash
 from utils.auth_utils import create_access_token, EncodeData, decode_payload, PyJWTError
 from utils.email_utils import send_activation_email
+from schemas.login_registration import ActivationData, NewAdminMember
 from schemas.users import User, UserUpdate
 from schemas.family import Family
 from schemas.auth import Token
+from schemas.exceptions import USER_ALREADY_EXISTS
 from database import user_provider, family_provider
 from database.db import get_db, Session
 
@@ -38,16 +39,13 @@ async def login_for_access_token(
 
 @router.post(f"/{RoutesEnum.REGISTER}")
 async def register(
-    member: NewMember,
+    member: NewAdminMember,
     request: Request,
     db: Session = Depends(get_db),
 ):
     if user_provider.get_user_by_email(member.email, db):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User with this email already exist",
-        )
-    family = Family(name=f"{member.name}'s family", registered_at=datetime.datetime.now())
+        raise USER_ALREADY_EXISTS
+    family = Family(name=member.family_name, registered_at=datetime.datetime.now())
     family_id = family_provider.create_family(family, db).id
     new_member = User(
         email=member.email,
@@ -68,9 +66,9 @@ async def register(
 def activate_user(token: str, activation_data: ActivationData, db: Session = Depends(get_db)):
     try:
         payload = decode_payload(token)
-        email: str = dict(payload)['email']
+        email: str = payload.email
     except (PyJWTError, KeyError):
-        raise HTTPException(status_code=400, detail="Invalid token")
+        raise HTTPException(status_code=422, detail="Invalid token")
 
     user = user_provider.get_user_by_email(email, db)
     if not user:

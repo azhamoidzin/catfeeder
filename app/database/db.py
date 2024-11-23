@@ -58,6 +58,7 @@ class DFeeder(Base):
     max_meal = Column(Integer)
     current_meal = Column(Integer)
     portion_meal = Column(Integer)
+    configured = Column(Boolean)
     registered_at = Column(DateTime, index=True)
     logs = relationship("DLog", back_populates="feeder")
 
@@ -68,7 +69,6 @@ class DTag(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     feeder_id = Column(Integer, ForeignKey(f'{Tables.FEEDERS}.id'))
     value = Column(String, index=True)
-    registered_at = Column(DateTime, index=True)
     feeder = relationship("DFeeder", back_populates="tags")
 
 
@@ -78,7 +78,6 @@ class DSchedule(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     feeder_id = Column(Integer, ForeignKey(f'{Tables.FEEDERS}.id'))
     value = Column(String, index=True)
-    registered_at = Column(DateTime, index=True)
     feeder = relationship("DFeeder", back_populates="schedules")
 
 

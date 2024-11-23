@@ -7,6 +7,7 @@ class RoutesEnum(StrEnum):
     REGISTER = 'register'
     ACTIVATE = 'activate'
     USERS = 'users'
+    FEEDERS = 'feeders'
     TIME_SIMULATION = 'time'
 
 

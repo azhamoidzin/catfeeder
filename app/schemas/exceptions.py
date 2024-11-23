@@ -20,3 +20,8 @@ USER_DOES_NOT_EXIST = HTTPException(
     status_code=status.HTTP_404_NOT_FOUND,
     detail=f"User does not exist!",
 )
+
+USER_ALREADY_EXISTS = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail="User already exist",
+)
