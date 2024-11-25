@@ -1,16 +1,8 @@
-import datetime
-from typing import Annotated, Type
+from typing import Type
 from copy import deepcopy
-
-from pydantic import EmailStr
-from fastapi import Depends
 
 from database.db import Session, DFeeder, DTag, DSchedule, update, get_db
 from schemas.feeders import FeederType, FeederInDB, FeederCreate, FeederUpdate
-from schemas.exceptions import INVALID_CREDENTIALS, INACTIVE_USER
-from utils.auth_utils import decode_payload, InvalidTokenError
-from utils.password_utils import verify_password
-from routers.routers_config import oauth2_scheme
 
 
 def feeder_to_pydantic(feeder: Type[DFeeder] | DFeeder | None) -> FeederInDB | None:

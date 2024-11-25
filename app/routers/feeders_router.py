@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from fastapi import Depends, HTTPException, status, APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from database import feeder_provider, user_provider
+from database import feeder_provider, user_provider, log_provider
 from database.db import get_db, Session
 from schemas.login_registration import NewMember
 from schemas.feeders import FeederCreate, FeederType, FeederInDB, FeederUpdate
@@ -38,6 +38,14 @@ async def add_new_feeder(
     if not user or user.family_id != current_user.family_id:
         raise NOT_FAMILY_MEMBER
     created_feeder = feeder_provider.create_feeder(feeder, db)
+    log_provider.create_log(log_provider.Log(
+        log=f"User [{current_user.id}] ({current_user.name}) registered "
+            f"feeder [{created_feeder.id}] ({created_feeder.name}) for "
+            f"user [{user.id}] ({user.name})!",
+        family_id=user.family_id,
+        user_id=current_user.id,
+        feeder_id=created_feeder.id,
+    ), db)
     return created_feeder
 
 
@@ -54,6 +62,13 @@ async def add_new_feeder(
     if feeder.user_id != current_user.id and not current_user.family_admin:
         raise OPERATION_NOT_ALLOWED
     feeder_db = feeder_provider.update_feeder(feeder_id, feeder_update, db)
+    log_provider.create_log(log_provider.Log(
+        log=f"User [{current_user.id}] ({current_user.name}) updated "
+            f"feeder [{feeder_db.id}] ({feeder_db.name})!",
+        family_id=current_user.family_id,
+        user_id=feeder_db.user_id,
+        feeder_id=feeder_db.id,
+    ), db)
     return feeder_db
 
 

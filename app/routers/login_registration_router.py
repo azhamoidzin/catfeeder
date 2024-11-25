@@ -1,4 +1,3 @@
-import datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status, APIRouter, Request
@@ -13,7 +12,7 @@ from schemas.users import User, UserUpdate
 from schemas.family import Family
 from schemas.auth import Token
 from schemas.exceptions import USER_ALREADY_EXISTS
-from database import user_provider, family_provider
+from database import user_provider, family_provider, log_provider
 from database.db import get_db, Session
 
 router = APIRouter()
@@ -47,6 +46,10 @@ async def register(
         raise USER_ALREADY_EXISTS
     family = Family(name=member.family_name)
     family_id = family_provider.create_family(family, db).id
+    log_provider.create_log(log_provider.Log(
+        log=f"Family [{family_id}] ({member.family_name}) created",
+        family_id=family_id,
+    ), db)
     new_member = User(
         email=member.email,
         name=member.name,
@@ -54,7 +57,12 @@ async def register(
         family_id=family_id,
         family_admin=True,
     )
-    user_provider.create_user(new_member, db)
+    created_user = user_provider.create_user(new_member, db)
+    log_provider.create_log(log_provider.Log(
+        log=f"User [{created_user.id}] ({created_user.name}) created",
+        family_id=family_id,
+        user_id=created_user.id,
+    ), db)
     token = create_access_token(EncodeData(email=member.email))
     activation_link = f"{request.headers.get('referer')}{RoutesEnum.ACTIVATE}/{token}"
     target_email = member.email
@@ -82,4 +90,9 @@ def activate_user(token: str, activation_data: ActivationData, db: Session = Dep
         hashed_password=hashed_password,
     )
     user_provider.update_user(user.id, user_update, db)
+    log_provider.create_log(log_provider.Log(
+        log=f"User [{user.id}] ({user.name}) activated!",
+        family_id=user.family_id,
+        user_id=user.id,
+    ), db)
     return {"msg": "Account activated successfully"}

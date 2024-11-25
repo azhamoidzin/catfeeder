@@ -19,7 +19,7 @@ class Feeder(FeederCreate):
     tags: list[str] | None = None
     schedule: list[str] | None = None
     portion_meal: int | None = None
-    current_meal: int | None = None
+    current_meal: int | None = 0
     configured: bool = False
 
 

@@ -10,12 +10,14 @@ from passlib.context import CryptContext
 from database import user_provider
 from routers.login_registration_router import router as login_registration_router
 from routers.users_router import router as users_router
+from routers.feeders_router import router as feeders_router
+from routers.logs_routers import router as logs_router
 
 
 logging.basicConfig(level=logging.DEBUG)
 
 app = FastAPI()
-for router in [login_registration_router, users_router]:
+for router in [login_registration_router, users_router, feeders_router, logs_router]:
     app.include_router(router)
 origins = ["*"]
 app.add_middleware(

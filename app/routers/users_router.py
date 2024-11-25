@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, status, APIRouter, Request
 
-from database import user_provider
+from database import user_provider, log_provider
 from database.db import get_db, Session
 from schemas.login_registration import NewMember
 from schemas.users import UserInDB, User
@@ -50,7 +50,13 @@ async def add_new_user(
         family_id=current_user.family_id,
         family_admin=False,
     )
-    user_provider.create_user(new_member, db)
+    created_user = user_provider.create_user(new_member, db)
+    log_provider.create_log(log_provider.Log(
+        log=f"User [{current_user.id}] ({current_user.name}) registered "
+            f"user [{created_user.id}] ({created_user.name})!",
+        family_id=current_user.family_id,
+        user_id=current_user.id,
+    ), db)
     token = create_access_token(EncodeData(email=member.email))
     activation_link = f"{request.headers.get('referer')}{RoutesEnum.ACTIVATE}/{token}"
     target_email = member.email

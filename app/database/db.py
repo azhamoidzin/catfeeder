@@ -85,13 +85,16 @@ class DSchedule(Base):
 class DLog(Base):
     __tablename__ = Tables.LOGS
 
-    log_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id   = Column(Integer, primary_key=True, index=True, autoincrement=True)
     log = Column(String)
     feeder_id = Column(Integer, ForeignKey(f'{Tables.FEEDERS}.id'))
     user_id = Column(Integer, ForeignKey(f'{Tables.USERS}.id'))
     family_id = Column(Integer, ForeignKey(f'{Tables.FAMILY}.id'))
     meal_poured = Column(Integer)
     registered_at = Column(DateTime, default=datetime.datetime.now, index=True)
+    feeder = relationship("DFeeder", back_populates="logs")
+    user = relationship("DUser", back_populates="logs")
+    family = relationship("DFamily", back_populates="logs")
 
 
 Base.metadata.create_all(bind=engine)
