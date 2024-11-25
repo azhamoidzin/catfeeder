@@ -18,15 +18,13 @@ router = APIRouter(prefix=f"/{RoutesEnum.LOGS}")
 @router.get('/', response_model=list[LogInDB])
 def get_user_feeders(
     current_user: Annotated[UserInDB, Depends(user_provider.get_current_active_user)],
-    family_id: int | None = None,
     feeder_id: int | None = None,
     user_id: int | None = None,
     db: Session = Depends(get_db),
 ):
-    import logging; logging.error((family_id, user_id, feeder_id))
-    family_id = family_id or current_user.family_id
-    if family_id != current_user.family_id:
-        raise OPERATION_NOT_ALLOWED
+    family_id = current_user.family_id
+    if feeder_id is None and user_id is None and not current_user.family_admin:
+        raise NOT_ADMIN
     if user_id is not None and (user_id != current_user.id and not current_user.family_admin):
         raise NOT_ADMIN
     user_feeder_ids = [feeder.id for feeder in feeder_provider.get_user_feeders(current_user.id, db)]
