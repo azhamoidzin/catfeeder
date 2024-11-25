@@ -37,9 +37,8 @@ def create_user(user: User, db: Session) -> UserInDB:
     return UserInDB.model_validate(user_insert)
 
 
-def update_user(user_update: UserUpdate, db: Session):
+def update_user(user_id: int, user_update: UserUpdate, db: Session):
     user_update_dict = user_update.dict()
-    user_id: int = user_update_dict.pop('id')
     query = (
         update(DUser)
         .where(DUser.id == user_id)

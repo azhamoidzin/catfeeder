@@ -45,7 +45,7 @@ async def register(
 ):
     if user_provider.get_user_by_email(member.email, db):
         raise USER_ALREADY_EXISTS
-    family = Family(name=member.family_name, registered_at=datetime.datetime.now())
+    family = Family(name=member.family_name)
     family_id = family_provider.create_family(family, db).id
     new_member = User(
         email=member.email,
@@ -53,7 +53,6 @@ async def register(
         disabled=True,
         family_id=family_id,
         family_admin=True,
-        registered_at=datetime.datetime.now()
     )
     user_provider.create_user(new_member, db)
     token = create_access_token(EncodeData(email=member.email))
@@ -79,9 +78,8 @@ def activate_user(token: str, activation_data: ActivationData, db: Session = Dep
 
     hashed_password = get_password_hash(activation_data.password)
     user_update = UserUpdate(
-        id=user.id,
         disabled=False,
         hashed_password=hashed_password,
     )
-    user_provider.update_user(user_update, db)
+    user_provider.update_user(user.id, user_update, db)
     return {"msg": "Account activated successfully"}

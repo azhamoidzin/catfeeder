@@ -8,20 +8,30 @@ class FeederType(IntEnum):
     SPIRAL = 1
 
 
-class Feeder(BaseModel):
-    type: FeederType = FeederType.DEFAULT
+class FeederCreate(BaseModel):
+    type: FeederType
     name: str
     user_id: int
     max_meal: int
-    tags: list[str] = None
-    schedule: list[str] = None
-    current_meal: int | None = None
+
+
+class Feeder(FeederCreate):
+    tags: list[str] | None = None
+    schedule: list[str] | None = None
     portion_meal: int | None = None
+    current_meal: int | None = None
     configured: bool = False
-    registered_at: datetime
+
+
+class FeederUpdate(BaseModel):
+    name: str | None = None
+    tags: list[str] = []
+    schedule: list[str] = []
+    portion_meal: int | None = None
 
 
 class FeederInDB(Feeder):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    registered_at: datetime | None = None
 

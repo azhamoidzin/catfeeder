@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import os
 from enum import StrEnum
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, create_engine, update
@@ -28,7 +29,7 @@ class DFamily(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, index=True)
-    registered_at = Column(DateTime, index=True)
+    registered_at = Column(DateTime, default=datetime.datetime.now, index=True)
     logs = relationship("DLog", back_populates="family")
 
 
@@ -42,7 +43,7 @@ class DUser(Base):
     hashed_password = Column(String, index=True)
     family_id = Column(Integer, ForeignKey(f'{Tables.FAMILY}.id'))
     family_admin = Column(Integer, index=True)
-    registered_at = Column(DateTime, index=True)
+    registered_at = Column(DateTime, default=datetime.datetime.now, index=True)
     logs = relationship("DLog", back_populates="user")
 
 
@@ -54,12 +55,12 @@ class DFeeder(Base):
     name = Column(String, index=True)
     user_id = Column(Integer, ForeignKey(f'{Tables.USERS}.id'))
     tags = relationship("DTag", back_populates="feeder", cascade="all, delete-orphan")
-    schedules = relationship("DSchedule", back_populates="feeder", cascade="all, delete-orphan")
+    schedule = relationship("DSchedule", back_populates="feeder", cascade="all, delete-orphan")
     max_meal = Column(Integer)
     current_meal = Column(Integer)
     portion_meal = Column(Integer)
     configured = Column(Boolean)
-    registered_at = Column(DateTime, index=True)
+    registered_at = Column(DateTime, default=datetime.datetime.now, index=True)
     logs = relationship("DLog", back_populates="feeder")
 
 
@@ -78,20 +79,19 @@ class DSchedule(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     feeder_id = Column(Integer, ForeignKey(f'{Tables.FEEDERS}.id'))
     value = Column(String, index=True)
-    feeder = relationship("DFeeder", back_populates="schedules")
+    feeder = relationship("DFeeder", back_populates="schedule")
 
 
 class DLog(Base):
     __tablename__ = Tables.LOGS
 
     log_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    log = Column(String)
     feeder_id = Column(Integer, ForeignKey(f'{Tables.FEEDERS}.id'))
     user_id = Column(Integer, ForeignKey(f'{Tables.USERS}.id'))
     family_id = Column(Integer, ForeignKey(f'{Tables.FAMILY}.id'))
-    registered_at = Column(DateTime, index=True)
-    feeder = relationship("DFeeder", back_populates="logs")
-    user = relationship("DUser", back_populates="logs")
-    family = relationship("DFamily", back_populates="logs")
+    meal_poured = Column(Integer)
+    registered_at = Column(DateTime, default=datetime.datetime.now, index=True)
 
 
 Base.metadata.create_all(bind=engine)

@@ -49,7 +49,6 @@ async def add_new_user(
         disabled=True,
         family_id=current_user.family_id,
         family_admin=False,
-        registered_at=datetime.datetime.now()
     )
     user_provider.create_user(new_member, db)
     token = create_access_token(EncodeData(email=member.email))

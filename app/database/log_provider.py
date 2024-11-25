@@ -6,28 +6,14 @@ from pydantic import EmailStr
 from fastapi import Depends
 
 from database.db import Session, DFeeder, DTag, DSchedule, update, get_db
-from schemas.feeders import FeederType, FeederInDB, FeederCreate, FeederUpdate
+from schemas.logs import Log, LogInDB
 from schemas.exceptions import INVALID_CREDENTIALS, INACTIVE_USER
 from utils.auth_utils import decode_payload, InvalidTokenError
 from utils.password_utils import verify_password
 from routers.routers_config import oauth2_scheme
 
 
-def feeder_to_pydantic(feeder: Type[DFeeder] | DFeeder | None) -> FeederInDB | None:
-    if not feeder:
-        return None
-    feeder_dict = deepcopy(feeder.__dict__)
-    feeder_dict['tags'] = [tag.value for tag in feeder.tags]
-    feeder_dict['schedule'] = [sch.value for sch in feeder.schedule]
-    return FeederInDB.model_validate(feeder_dict)
-
-
-def get_user_feeders(user_id: int, db: Session) -> list[FeederInDB]:
-    feeders = db.query(DFeeder).where(DFeeder.user_id == user_id).all()
-    return [feeder_to_pydantic(feeder) for feeder in feeders]
-
-
-def create_feeder(feeder: FeederCreate, db: Session) -> FeederInDB:
+def create_log(feeder: FeederCreate, db: Session) -> FeederInDB:
     feeder_insert = DFeeder(
         type=feeder.type,
         name=feeder.name,
