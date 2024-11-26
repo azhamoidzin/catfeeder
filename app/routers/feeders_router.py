@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from database import feeder_provider, user_provider, log_provider
 from database.db import get_db, Session
 from schemas.login_registration import NewMember
-from schemas.feeders import FeederCreate, FeederType, FeederInDB, FeederUpdate
+from schemas.feeders import FeederCreate, FeederType, FeederInDB, FeederUpdate, InstantFeedResponse
 from schemas.users import UserInDB
 from schemas.exceptions import NOT_ADMIN, USER_DOES_NOT_EXIST, USER_ALREADY_EXISTS, NOT_FAMILY_MEMBER, \
     FEEDER_DOES_NOT_EXIST, OPERATION_NOT_ALLOWED, FEEDER_NOT_CONFIGURED
@@ -57,8 +57,6 @@ async def add_new_feeder(
     db: Session = Depends(get_db),
 ) -> FeederInDB:
     feeder = feeder_provider.get_feeder_by_id(feeder_id, db)
-    if not feeder:
-        raise FEEDER_DOES_NOT_EXIST
     if feeder.user_id != current_user.id and not current_user.family_admin:
         raise OPERATION_NOT_ALLOWED
     feeder_db = feeder_provider.update_feeder(feeder_id, feeder_update, db)
@@ -79,14 +77,35 @@ async def download_schedule(
     db: Session = Depends(get_db),
 ):
     feeder = feeder_provider.get_feeder_by_id(feeder_id, db)
-    if not feeder:
-        raise FEEDER_DOES_NOT_EXIST
     if not feeder.configured:
         raise FEEDER_NOT_CONFIGURED
+    if feeder.user_id != current_user.id and not current_user.family_admin:
+        raise OPERATION_NOT_ALLOWED
     schedule_str = ', '.join(feeder.schedule)
     buffer = io.BytesIO(schedule_str.encode('utf-8'))
-
     return StreamingResponse(buffer, media_type='application/octet-stream', headers={
         'Content-Disposition': 'attachment; filename="schedule.catschedule"'
     })
 
+
+@router.post("/{feeder_id}/instant_feed")
+async def download_schedule(
+    feeder_id: int,
+    current_user: Annotated[UserInDB, Depends(user_provider.get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    feeder = feeder_provider.get_feeder_by_id(feeder_id, db)
+    if not feeder.configured:
+        raise FEEDER_NOT_CONFIGURED
+    if feeder.user_id != current_user.id and not current_user.family_admin:
+        raise OPERATION_NOT_ALLOWED
+    success, amount = feeder_provider.perform_feed(feeder_id, db)
+    log_provider.create_log(log_provider.Log(
+        log=f"User [{current_user.id}] ({current_user.name}) activated "
+            f"feeder [{feeder.id}] ({feeder.name}) by {amount} (Success: {success})!",
+        family_id=current_user.family_id,
+        user_id=current_user.id,
+        feeder_id=feeder.id,
+        meal_poured=amount,
+    ), db)
+    return InstantFeedResponse(fed=success, amount=amount)

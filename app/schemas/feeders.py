@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import IntEnum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, PositiveInt
 
 
 class FeederType(IntEnum):
@@ -27,7 +27,7 @@ class FeederUpdate(BaseModel):
     name: str | None = None
     tags: list[str] = []
     schedule: list[str] = []
-    portion_meal: int | None = None
+    portion_meal: PositiveInt | None = None
 
 
 class FeederInDB(Feeder):
@@ -35,3 +35,7 @@ class FeederInDB(Feeder):
     id: int
     registered_at: datetime | None = None
 
+
+class InstantFeedResponse(BaseModel):
+    fed: bool
+    amount: int

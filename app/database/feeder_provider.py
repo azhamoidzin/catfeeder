@@ -3,6 +3,7 @@ from copy import deepcopy
 
 from database.db import Session, DFeeder, DTag, DSchedule, update, get_db
 from schemas.feeders import FeederType, FeederInDB, FeederCreate, FeederUpdate
+from schemas.exceptions import FEEDER_DOES_NOT_EXIST
 
 
 def feeder_to_pydantic(feeder: Type[DFeeder] | DFeeder | None) -> FeederInDB | None:
@@ -33,10 +34,12 @@ def create_feeder(feeder: FeederCreate, db: Session) -> FeederInDB:
     return feeder_to_pydantic(feeder_insert)
 
 
-def get_feeder_by_id(feeder_id: int, db: Session) -> FeederInDB | None:
+def get_feeder_by_id(feeder_id: int, db: Session) -> FeederInDB:
     feeder = db.query(DFeeder).where(DFeeder.id == feeder_id).first()
+    feeder = feeder_to_pydantic(feeder)
     if feeder:
-        return feeder_to_pydantic(feeder)
+        return feeder
+    raise FEEDER_DOES_NOT_EXIST
 
 
 def update_feeder(feeder_id: int, feeder_update: FeederUpdate, db: Session) -> FeederInDB:
@@ -62,3 +65,15 @@ def update_feeder(feeder_id: int, feeder_update: FeederUpdate, db: Session) -> F
     db.commit()
     feeder = db.query(DFeeder).where(DFeeder.id == feeder_id).first()
     return feeder_to_pydantic(feeder)
+
+
+def perform_feed(feeder_id: int, db: Session) -> (bool, int):
+    feeder = db.query(DFeeder).where(DFeeder.id == feeder_id).first()
+    if not feeder:
+        raise FEEDER_DOES_NOT_EXIST
+    if feeder.current_meal < feeder.portion_meal:
+        return False, 0
+    feeder.current_meal -= feeder.portion_meal
+    db.commit()
+    db.refresh(feeder)
+    return True, feeder.portion_meal
