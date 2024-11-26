@@ -28,6 +28,7 @@ def create_feeder(feeder: FeederCreate, db: Session) -> FeederInDB:
         name=feeder.name,
         user_id=feeder.user_id,
         max_meal=feeder.max_meal,
+        curent_meal=0,
         configured=False,
     )
     db.add(feeder_insert)
