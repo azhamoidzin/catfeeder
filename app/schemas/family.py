@@ -17,3 +17,16 @@ class FamilyStatusResponse(BaseModel):
     total_feeders: int
     total_poured: int
     current_time: datetime
+
+
+class FamilyMember(BaseModel):
+    id: int
+    name: str
+    registration: datetime
+
+
+class Family(BaseModel):
+    id: int
+    name: str
+    members: list[FamilyMember]
+    admin: None = None
