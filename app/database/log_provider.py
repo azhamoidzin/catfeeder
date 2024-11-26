@@ -1,4 +1,4 @@
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 
 from database.db import Session, DLog
 from schemas.logs import Log, LogInDB, LogSearch
@@ -23,3 +23,8 @@ def get_logs(log_search: LogSearch, db: Session) -> list[LogInDB]:
 
     logs = db.query(DLog).where(and_(*filters)).all()
     return [LogInDB.model_validate(log) for log in logs]
+
+
+def get_total_poured(family_id: int, db: Session) -> int:
+    result = db.query(func.sum(DLog.meal_poured)).filter(DLog.family_id == family_id).scalar()
+    return result

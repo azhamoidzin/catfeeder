@@ -13,7 +13,7 @@ class GlobalState:
     def time_warp(self, days: int = 0):
         self.time_offset += timedelta(days=days)
 
-    def get_time_lock(self):
+    async def get_time_lock(self):
         async with self.time_lock:
             yield
 
