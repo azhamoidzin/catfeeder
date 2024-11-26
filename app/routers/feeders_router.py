@@ -115,3 +115,25 @@ async def download_schedule(
         meal_poured=amount,
     ), db)
     return InstantFeedResponse(fed=success, amount=amount)
+
+
+@router.post("/{feeder_id}/refill")
+async def download_schedule(
+    feeder_id: int,
+    current_user: Annotated[UserInDB, Depends(user_provider.get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    feeder = feeder_provider.get_feeder_by_id(feeder_id, db)
+    if not feeder.configured:
+        raise FEEDER_NOT_CONFIGURED
+    if feeder.user_id != current_user.id and not current_user.family_admin:
+        raise OPERATION_NOT_ALLOWED
+    success = feeder_provider.perform_refill(feeder_id, db)
+    log_provider.create_log(log_provider.Log(
+        log=f"User [{current_user.id}] ({current_user.name}) refilled "
+            f"feeder [{feeder.id}] ({feeder.name}) (Success: {success})!",
+        family_id=current_user.family_id,
+        user_id=current_user.id,
+        feeder_id=feeder.id,
+    ), db)
+    return success

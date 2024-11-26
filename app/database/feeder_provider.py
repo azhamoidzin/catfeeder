@@ -79,3 +79,13 @@ def perform_feed(feeder_id: int, db: Session) -> (bool, int):
     db.commit()
     db.refresh(feeder)
     return True, feeder.portion_meal
+
+
+def perform_refill(feeder_id: int, db: Session) -> bool:
+    feeder = db.query(DFeeder).where(DFeeder.id == feeder_id).first()
+    if not feeder:
+        raise FEEDER_DOES_NOT_EXIST
+    feeder.current_meal = feeder.max_meal
+    db.commit()
+    db.refresh(feeder)
+    return True
