@@ -19,9 +19,14 @@ router = APIRouter(prefix=f"/{RoutesEnum.FEEDERS}")
 @router.get('/', response_model=list[FeederInDB])
 def get_user_feeders(
     current_user: Annotated[UserInDB, Depends(user_provider.get_current_active_user)],
+    user_id: int | None = None,
     db: Session = Depends(get_db),
 ):
-    return feeder_provider.get_user_feeders(current_user.id, db)
+    if not user_id:
+        if not current_user.family_admin:
+            raise NOT_ADMIN
+        user_id = [user.id for user in user_provider.get_users_by_family_id(current_user.family_id, db)]
+    return feeder_provider.get_user_feeders(user_id, db)
 
 
 @router.put('/', response_model=FeederInDB)
@@ -100,8 +105,9 @@ async def download_schedule(
     if feeder.user_id != current_user.id and not current_user.family_admin:
         raise OPERATION_NOT_ALLOWED
     success, amount = feeder_provider.perform_feed(feeder_id, db)
+    how = feeder.type.feed_type_str()
     log_provider.create_log(log_provider.Log(
-        log=f"User [{current_user.id}] ({current_user.name}) activated "
+        log=f"User [{current_user.id}] ({current_user.name}) activated ({how}) "
             f"feeder [{feeder.id}] ({feeder.name}) by {amount} (Success: {success})!",
         family_id=current_user.family_id,
         user_id=current_user.id,

@@ -15,8 +15,10 @@ def feeder_to_pydantic(feeder: Type[DFeeder] | DFeeder | None) -> FeederInDB | N
     return FeederInDB.model_validate(feeder_dict)
 
 
-def get_user_feeders(user_id: int, db: Session) -> list[FeederInDB]:
-    feeders = db.query(DFeeder).where(DFeeder.user_id == user_id).all()
+def get_user_feeders(user_id: int | list[int], db: Session) -> list[FeederInDB]:
+    if isinstance(user_id, int):
+        user_id: list[int] = [user_id]
+    feeders = db.query(DFeeder).where(DFeeder.user_id.in_(user_id)).all()
     return [feeder_to_pydantic(feeder) for feeder in feeders]
 
 

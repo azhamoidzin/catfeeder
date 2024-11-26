@@ -7,6 +7,13 @@ class FeederType(IntEnum):
     DEFAULT = 0
     SPIRAL = 1
 
+    def feed_type_str(self):
+        lookup = {
+            FeederType.DEFAULT: 'one-time pour',
+            FeederType.SPIRAL: 'spinning and pouring',
+        }
+        return lookup[self]
+
 
 class FeederCreate(BaseModel):
     type: FeederType

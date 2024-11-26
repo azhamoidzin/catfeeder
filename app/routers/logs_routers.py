@@ -27,7 +27,9 @@ def get_user_feeders(
         raise NOT_ADMIN
     if user_id is not None and (user_id != current_user.id and not current_user.family_admin):
         raise NOT_ADMIN
-    user_feeder_ids = [feeder.id for feeder in feeder_provider.get_user_feeders(current_user.id, db)]
+    user_feeder_ids = [
+        feeder.id for feeder in feeder_provider.get_user_feeders(current_user.id, db)
+    ]
     if feeder_id is not None and (feeder_id not in user_feeder_ids and not current_user.family_admin):
         raise NOT_ADMIN
     return log_provider.get_logs(LogSearch(family_id=family_id, user_id=user_id, feeder_id=feeder_id), db)
