@@ -15,12 +15,15 @@ from routers.users_router import router as users_router
 from routers.feeders_router import router as feeders_router
 from routers.logs_routers import router as logs_router
 from routers.family_router import router as family_router
+from routers.time_simulation_router import router as time_simulation_router
 
 
 logging.basicConfig(level=logging.DEBUG)
 
 app = FastAPI()
-for router in [login_registration_router, users_router, feeders_router, logs_router, family_router]:
+for router in [
+    login_registration_router, users_router, feeders_router, logs_router, family_router, time_simulation_router
+]:
     app.include_router(router)
 origins = ["*"]
 app.add_middleware(

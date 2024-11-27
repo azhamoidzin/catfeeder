@@ -2,9 +2,12 @@ from sqlalchemy import and_, func
 
 from database.db import Session, DLog
 from schemas.logs import Log, LogInDB, LogSearch
+from global_state import GLOBAL_STATE
 
 
 def create_log(log: Log, db: Session) -> LogInDB:
+    if not log.registered_at:
+        log.registered_at = GLOBAL_STATE.get_current_time()
     log_insert = DLog(**log.dict())
     db.add(log_insert)
     db.commit()

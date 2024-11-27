@@ -11,6 +11,7 @@ class LogSearch(BaseModel):
 class Log(LogSearch):
     log: str
     meal_poured: int | None = None
+    registered_at: datetime | None = None
 
 
 class LogInDB(Log):
