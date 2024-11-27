@@ -107,15 +107,12 @@ async def process_feeder(feeder_id):
         if feeder.configured:
             now = GLOBAL_STATE.get_current_time()
             current_time_str = now.strftime("%H:%M")
-            logging.debug(f'{feeder_id} {current_time_str=} {feeder.schedule=}')
 
             if current_time_str in feeder.schedule:
                 success, amount = perform_feed(feeder_id, db)
                 how = feeder.type.feed_type_str()
-                logging.debug(f'{feeder_id} Yielding')
 
                 yield feeder.id, feeder.name, how, success, amount
-        logging.debug(f'{feeder_id} Waiting')
         await asyncio.sleep(20)
         db.close()
 
@@ -123,7 +120,6 @@ async def process_feeder(feeder_id):
 async def process_and_log(feeder, db, log_provider, user_provider):
     logging.debug(f"Processing {feeder.id}")
     async for feeder_id, feeder_name, how, success, amount in process_feeder(feeder.id):
-        logging.debug(f'Time to log {feeder_id}')
         log_provider.create_log(log_provider.Log(
             log=f"Scheduled activation ({how}) "
                 f"feeder [{feeder_id}] ({feeder_name}) by {amount} (Success: {success})!",
