@@ -7,8 +7,8 @@ from sqlalchemy.ext.declarative import declarative_base
 # from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import relationship, sessionmaker, Session
 
-MYSQL_USER = os.environ['MYSQL_USER']
-MYSQL_PASSWORD = os.environ['MYSQL_PASSWORD']
+MYSQL_USER = os.environ['MYSQL_ROOT_USER']
+MYSQL_PASSWORD = os.environ['MYSQL_ROOT_PASSWORD']
 DB_URL = f"mysql://{MYSQL_USER}:{MYSQL_PASSWORD}@db:3306/catfeeder?unix_socket=/var/run/mysqld/mysqld.sock"
 
 engine = create_engine(DB_URL)

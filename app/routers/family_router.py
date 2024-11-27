@@ -9,14 +9,14 @@ from database import feeder_provider, user_provider, log_provider, family_provid
 from database.db import get_db, Session
 from schemas.exceptions import NOT_ADMIN, USER_DOES_NOT_EXIST, USER_ALREADY_EXISTS, NOT_FAMILY_MEMBER, \
     FEEDER_DOES_NOT_EXIST, OPERATION_NOT_ALLOWED, FEEDER_NOT_CONFIGURED
-from schemas.family import FamilyStatusResponse, FamilyMember, Family
+from schemas.family import FamilyStatusResponse, FamilyMember, FamilyResponse
 from schemas.users import UserInDB
 from routers.routers_config import RoutesEnum
 
 router = APIRouter(prefix=f"/{RoutesEnum.FAMILY}")
 
 
-@router.get("/", response_model=Family)
+@router.get("/", response_model=FamilyResponse)
 async def get_family(
     current_user: Annotated[UserInDB, Depends(user_provider.get_current_active_user)],
     db: Session = Depends(get_db),
@@ -25,7 +25,7 @@ async def get_family(
     family = family_provider.get_family_by_id(current_user.family_id, db)
     users = user_provider.get_users_by_family_id(current_user.family_id, db)
     members = [FamilyMember(id=user.id, name=user.name, registration=user.registered_at) for user in users]
-    return Family(id=family.id, members=members, name=family.name)
+    return FamilyResponse(id=family.id, members=members, name=family.name)
 
 
 @router.get('/status', response_model=FamilyStatusResponse)

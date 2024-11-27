@@ -15,7 +15,7 @@ class FamilyInDB(Family):
 class FamilyStatusResponse(BaseModel):
     total_users: int
     total_feeders: int
-    total_poured: int
+    total_poured: int | None
     current_time: datetime
 
 
@@ -25,7 +25,7 @@ class FamilyMember(BaseModel):
     registration: datetime
 
 
-class Family(BaseModel):
+class FamilyResponse(BaseModel):
     id: int
     name: str
     members: list[FamilyMember]
