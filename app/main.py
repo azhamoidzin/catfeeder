@@ -7,7 +7,9 @@ from fastapi import Depends, FastAPI, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
-from database import user_provider
+from database.db import SessionLocal
+from database.feeder_provider import _get_all_feeders, process_and_log
+from database import log_provider, user_provider, feeder_provider
 from routers.login_registration_router import router as login_registration_router
 from routers.users_router import router as users_router
 from routers.feeders_router import router as feeders_router
@@ -28,6 +30,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def app_startup():
+    db = SessionLocal()
+    for feeder in _get_all_feeders(db):
+        asyncio.create_task(process_and_log(feeder, db, log_provider, user_provider))  # noqa
+
 #
 # async def process_feeder(feeder_id):
 #     def get_feeder_dict():

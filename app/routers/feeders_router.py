@@ -1,7 +1,7 @@
 import io
 from typing import Annotated, Literal
 
-from fastapi import Depends, HTTPException, status, APIRouter, Request
+from fastapi import Depends, HTTPException, status, APIRouter, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse
 
 from database import feeder_provider, user_provider, log_provider
@@ -33,6 +33,7 @@ def get_user_feeders(
 async def add_new_feeder(
     feeder: FeederCreate,
     current_user: Annotated[UserInDB, Depends(user_provider.get_current_active_user)],
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> FeederInDB:
     if not current_user.family_admin:
@@ -51,6 +52,7 @@ async def add_new_feeder(
         user_id=current_user.id,
         feeder_id=created_feeder.id,
     ), db)
+    background_tasks.add_task(feeder_provider.process_and_log, created_feeder, db, log_provider, user_provider)
     return created_feeder
 
 

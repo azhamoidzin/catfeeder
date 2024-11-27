@@ -1,7 +1,10 @@
+import asyncio
+import logging
 from typing import Type
 from copy import deepcopy
 
-from database.db import Session, DFeeder, DTag, DSchedule, update, get_db
+from database.db import Session, DFeeder, DTag, DSchedule, update, get_db, SessionLocal
+from global_state import GLOBAL_STATE
 from schemas.feeders import FeederType, FeederInDB, FeederCreate, FeederUpdate
 from schemas.exceptions import FEEDER_DOES_NOT_EXIST
 
@@ -19,6 +22,11 @@ def get_user_feeders(user_id: int | list[int], db: Session) -> list[FeederInDB]:
     if isinstance(user_id, int):
         user_id: list[int] = [user_id]
     feeders = db.query(DFeeder).where(DFeeder.user_id.in_(user_id)).all()
+    return [feeder_to_pydantic(feeder) for feeder in feeders]
+
+
+def _get_all_feeders(db: Session) -> list[FeederInDB]:
+    feeders = db.query(DFeeder).all()
     return [feeder_to_pydantic(feeder) for feeder in feeders]
 
 
@@ -90,3 +98,37 @@ def perform_refill(feeder_id: int, db: Session) -> bool:
     db.commit()
     db.refresh(feeder)
     return True
+
+
+async def process_feeder(feeder_id):
+    while True:
+        db = SessionLocal()
+        feeder = get_feeder_by_id(feeder_id, db)
+        if feeder.configured:
+            now = GLOBAL_STATE.get_current_time()
+            current_time_str = now.strftime("%H:%M")
+            logging.debug(f'{feeder_id} {current_time_str=} {feeder.schedule=}')
+
+            if current_time_str in feeder.schedule:
+                success, amount = perform_feed(feeder_id, db)
+                how = feeder.type.feed_type_str()
+                logging.debug(f'{feeder_id} Yielding')
+
+                yield feeder.id, feeder.name, how, success, amount
+        logging.debug(f'{feeder_id} Waiting')
+        await asyncio.sleep(20)
+        db.close()
+
+
+async def process_and_log(feeder, db, log_provider, user_provider):
+    logging.debug(f"Processing {feeder.id}")
+    async for feeder_id, feeder_name, how, success, amount in process_feeder(feeder.id):
+        logging.debug(f'Time to log {feeder_id}')
+        log_provider.create_log(log_provider.Log(
+            log=f"Scheduled activation ({how}) "
+                f"feeder [{feeder_id}] ({feeder_name}) by {amount} (Success: {success})!",
+            family_id=user_provider.get_user_by_id(feeder.user_id, db).family_id,
+            user_id=feeder.user_id,
+            feeder_id=feeder_id,
+            meal_poured=amount,
+        ), db)
