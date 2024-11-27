@@ -120,6 +120,12 @@ async def process_feeder(feeder_id):
 async def process_and_log(feeder, db, log_provider, user_provider):
     logging.debug(f"Processing {feeder.id}")
     async for feeder_id, feeder_name, how, success, amount in process_feeder(feeder.id):
+        if success:
+            log = (f"Scheduled activation ({how}) "
+                   f"feeder [{feeder_id}] ({feeder_name}) by {amount} (Success: {success})!")
+        else:
+            log = (f"Scheduled activation ({how}) "
+                   f"feeder [{feeder_id}] ({feeder_name}) by {amount} (Not enough food to activate)!")
         log_provider.create_log(log_provider.Log(
             log=f"Scheduled activation ({how}) "
                 f"feeder [{feeder_id}] ({feeder_name}) by {amount} (Success: {success})!",

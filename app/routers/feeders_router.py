@@ -108,9 +108,10 @@ async def download_schedule(
         raise OPERATION_NOT_ALLOWED
     success, amount = feeder_provider.perform_feed(feeder_id, db)
     how = feeder.type.feed_type_str()
+    msg = "Success" if success else "Not enough food"
     log_provider.create_log(log_provider.Log(
         log=f"User [{current_user.id}] ({current_user.name}) activated ({how}) "
-            f"feeder [{feeder.id}] ({feeder.name}) by {amount} (Success: {success})!",
+            f"feeder [{feeder.id}] ({feeder.name}) by {amount} ({msg})!",
         family_id=current_user.family_id,
         user_id=current_user.id,
         feeder_id=feeder.id,

@@ -33,9 +33,10 @@ async def warp(
 
                 success, amount = feeder_provider.perform_feed(feeder.id, db)
                 how = feeder.type.feed_type_str()
+                msg = "Success" if success else "Not enough food"
                 log_provider.create_log(log_provider.Log(
                     log=f"Scheduled activation ({how}) "
-                        f"feeder [{feeder.id}] ({feeder.name}) by {amount} (Success: {success})! #TIMETRAVEL",
+                        f"feeder [{feeder.id}] ({feeder.name}) by {amount} ({msg})! #TIMETRAVEL",
                     family_id=user_provider.get_user_by_id(feeder.user_id, db).family_id,
                     user_id=None,
                     feeder_id=feeder.id,
