@@ -124,7 +124,7 @@ async def process_and_log(feeder, db, log_provider, user_provider):
             log=f"Scheduled activation ({how}) "
                 f"feeder [{feeder_id}] ({feeder_name}) by {amount} (Success: {success})!",
             family_id=user_provider.get_user_by_id(feeder.user_id, db).family_id,
-            user_id=feeder.user_id,
+            user_id=None,
             feeder_id=feeder_id,
             meal_poured=amount,
         ), db)
